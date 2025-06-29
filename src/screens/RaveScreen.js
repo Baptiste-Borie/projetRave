@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Button,
   ActivityIndicator,
   FlatList,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import { useSelector } from "react-redux";
 import * as FileSystem from "expo-file-system";
 import { Audio } from "expo-av";
 import Recording from "../components/Recording";
+import { colors, spacing, radius } from "../theme";
 
 export default function RaveScreen() {
   const server = useSelector((state) => state.audio.server);
@@ -26,6 +26,22 @@ export default function RaveScreen() {
 
   const baseUrl = `http://${server.ip}:${server.port}`;
 
+  useEffect(() => {
+    if (!server.ip || !server.port) return;
+
+    const fetchModels = async () => {
+      try {
+        const res = await fetch(`${baseUrl}/getmodels`);
+        const data = await res.json();
+        setModels(data.models);
+      } catch (err) {
+        console.error("Erreur lors de la récupération des modèles :", err);
+      }
+    };
+
+    fetchModels();
+  }, [server]);
+
   const downloadTransformedFile = async (baseUrl, filename = "output.wav") => {
     const directory = FileSystem.documentDirectory + "transformed/";
     const targetPath = directory + filename;
@@ -36,7 +52,6 @@ export default function RaveScreen() {
         await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
       }
 
-      // ✅ Supprimer l’ancien fichier s’il existe
       const fileInfo = await FileSystem.getInfoAsync(targetPath);
       if (fileInfo.exists) {
         await FileSystem.deleteAsync(targetPath);
@@ -47,30 +62,12 @@ export default function RaveScreen() {
         targetPath
       );
 
-      console.log("Fichier téléchargé :", downloadRes.uri);
       return downloadRes.uri;
     } catch (err) {
       console.error("Erreur téléchargement fichier transformé :", err);
       return null;
     }
   };
-
-  useEffect(() => {
-    if (!server.ip || !server.port) return;
-
-    const fetchModels = async () => {
-      try {
-        const res = await fetch(`${baseUrl}/getmodels`);
-        const data = await res.json();
-        console.log("b:", data);
-        setModels(data.models);
-      } catch (err) {
-        console.error("Erreur lors de la récupération des modèles :", err);
-      }
-    };
-
-    fetchModels();
-  }, [server]);
 
   const selectModel = async (model) => {
     try {
@@ -87,21 +84,14 @@ export default function RaveScreen() {
     setTransformedUri(null);
 
     try {
-      // Upload
-      const uploadResponse = await FileSystem.uploadAsync(
-        `${baseUrl}/upload`,
-        selectedRecording.uri,
-        {
-          fieldName: "file",
-          httpMethod: "POST",
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-          headers: {
-            filename: selectedRecording.name + ".m4a",
-          },
-        }
-      );
-
-      console.log("Upload terminé :", uploadResponse.body); // Download
+      await FileSystem.uploadAsync(`${baseUrl}/upload`, selectedRecording.uri, {
+        fieldName: "file",
+        httpMethod: "POST",
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        headers: {
+          filename: selectedRecording.name + ".m4a",
+        },
+      });
 
       const uri = await downloadTransformedFile(baseUrl, "transformed.wav");
       setTransformedUri(uri);
@@ -112,22 +102,9 @@ export default function RaveScreen() {
     setLoading(false);
   };
 
-  const playSound = async (uri) => {
-    if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-      setSound(null);
-      return;
-    }
-
-    const { sound: newSound } = await Audio.Sound.createAsync({ uri });
-    setSound(newSound);
-    await newSound.playAsync();
-  };
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sélectionne un enregistrement</Text>
+      <Text style={styles.title}>🎙 Enregistrements</Text>
       <FlatList
         data={recordings}
         keyExtractor={(item) => item.name}
@@ -139,13 +116,14 @@ export default function RaveScreen() {
                 selectedRecording?.name === item.name && styles.selected,
               ]}
             >
-              🎙 {item.name}
+              {item.name}
             </Text>
           </TouchableOpacity>
         )}
+        contentContainerStyle={{ paddingBottom: spacing.md }}
       />
 
-      <Text style={styles.title}>Modèles RAVE disponibles</Text>
+      <Text style={styles.title}>🧠 Modèles RAVE</Text>
       <FlatList
         data={models}
         horizontal
@@ -162,23 +140,32 @@ export default function RaveScreen() {
             </Text>
           </TouchableOpacity>
         )}
+        contentContainerStyle={{ paddingVertical: spacing.sm }}
       />
 
-      <Button
-        title="Transférer vers RAVE"
+      <TouchableOpacity
+        style={[
+          styles.button,
+          (!selectedModel || !selectedRecording || loading) &&
+            styles.disabledButton,
+        ]}
         onPress={uploadAndTransform}
-        disabled={!selectedRecording || !selectedModel || loading}
-      />
+        disabled={!selectedModel || !selectedRecording || loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? "Transformation en cours..." : "Transférer vers RAVE"}
+        </Text>
+      </TouchableOpacity>
 
-      {loading && <ActivityIndicator size="large" style={{ margin: 20 }} />}
+      {loading && (
+        <ActivityIndicator size="large" style={{ margin: spacing.lg }} />
+      )}
 
       {transformedUri && selectedRecording && (
         <>
-          <Text style={styles.title}>Écouter le résultat</Text>
-          <Recording
-            item={{ name: "🎧 Original", uri: selectedRecording.uri }}
-          />
-          <Recording item={{ name: "🎛 Transformé", uri: transformedUri }} />
+          <Text style={styles.title}>🎧 Résultat</Text>
+          <Recording item={{ name: "Original", uri: selectedRecording.uri }} />
+          <Recording item={{ name: "Transformé", uri: transformedUri }} />
         </>
       )}
     </View>
@@ -186,28 +173,58 @@ export default function RaveScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    paddingTop: 80,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
   item: {
-    padding: 10,
+    padding: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    marginBottom: spacing.xs,
     borderWidth: 1,
-    borderColor: "#ccc",
-    marginVertical: 4,
-    borderRadius: 5,
+    borderColor: colors.muted,
+    color: colors.text,
   },
   selected: {
-    backgroundColor: "#d0f0ff",
-    borderColor: "#00aaff",
+    backgroundColor: "#e0f0ff",
+    borderColor: colors.primary,
   },
   model: {
-    marginHorizontal: 10,
-    padding: 10,
+    padding: spacing.sm,
+    marginHorizontal: spacing.xs,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
+    borderColor: colors.muted,
+    color: colors.text,
   },
   selectedModel: {
-    backgroundColor: "#ccffd5",
-    borderColor: "#00cc44",
+    backgroundColor: "#d0ffd6",
+    borderColor: colors.success,
+  },
+  button: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    alignItems: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#bbb",
+  },
+  buttonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

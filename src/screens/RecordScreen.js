@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   FlatList,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from "react-redux";
 import { addRecording, removeRecording } from "../store/slices/audioSlices";
 import Recording from "../components/Recording";
+import { colors, spacing, radius } from "../theme";
 
 export default function RecordScreen() {
   const dispatch = useDispatch();
@@ -26,9 +26,7 @@ export default function RecordScreen() {
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
+      if (sound) sound.unloadAsync();
     };
   }, [sound]);
 
@@ -39,7 +37,6 @@ export default function RecordScreen() {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
-
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
@@ -53,54 +50,27 @@ export default function RecordScreen() {
     if (!recording) return;
 
     await recording.stopAndUnloadAsync();
-
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
-      outputAudioPortOverride: Audio.OUTPUT_PORT_SPEAKER, // <-- clé ici !
+      outputAudioPortOverride: Audio.OUTPUT_PORT_SPEAKER,
     });
 
     const uri = recording.getURI();
     setRecording(null);
     setSound(null);
-    setTempUri(uri); // temporairement stocké pour sauvegarde
-    console.log("Enregistrement terminé, fichier temporaire :", uri);
+    setTempUri(uri);
   };
 
   const saveRecording = async () => {
     if (!tempUri || nameInput.trim() === "") return;
 
     const newPath = FileSystem.documentDirectory + nameInput + ".m4a";
-    await FileSystem.copyAsync({
-      from: tempUri,
-      to: newPath,
-    });
+    await FileSystem.copyAsync({ from: tempUri, to: newPath });
 
     dispatch(addRecording({ name: nameInput, uri: newPath }));
-
-    // Reset
     setTempUri(null);
     setNameInput("");
-  };
-
-  const playSound = async (uri) => {
-    if (isPlaying && sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-      setIsPlaying(false);
-      return;
-    }
-
-    const { sound: newSound } = await Audio.Sound.createAsync({ uri });
-    setSound(newSound);
-    await newSound.playAsync();
-    setIsPlaying(true);
-
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isPlaying) {
-        setIsPlaying(false);
-      }
-    });
   };
 
   const deleteRecording = async (name, uri) => {
@@ -110,33 +80,43 @@ export default function RecordScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Enregistrement Audio</Text>
+      <Text style={styles.title}>🎙️ Enregistreur vocal</Text>
 
-      {!recording ? (
-        <Button title="Démarrer l'enregistrement" onPress={startRecording} />
-      ) : (
-        <Button title="Arrêter l'enregistrement" onPress={stopRecording} />
-      )}
+      <TouchableOpacity
+        style={[
+          styles.button,
+          recording ? styles.stopButton : styles.startButton,
+        ]}
+        onPress={recording ? stopRecording : startRecording}
+      >
+        <Text style={styles.buttonText}>
+          {recording ? "Arrêter l'enregistrement" : "Démarrer l'enregistrement"}
+        </Text>
+      </TouchableOpacity>
 
       {tempUri && (
         <View style={styles.saveSection}>
           <TextInput
+            style={styles.input}
             placeholder="Nom de l'enregistrement"
             value={nameInput}
             onChangeText={setNameInput}
-            style={styles.input}
+            placeholderTextColor={colors.muted}
           />
-          <Button title="Sauvegarder" onPress={saveRecording} />
+          <TouchableOpacity style={styles.saveButton} onPress={saveRecording}>
+            <Text style={styles.buttonText}>💾 Sauvegarder</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      <Text style={styles.subtitle}>Enregistrements :</Text>
+      <Text style={styles.subtitle}>🎧 Mes enregistrements</Text>
       <FlatList
         data={recordings}
         keyExtractor={(item) => item.name}
         renderItem={({ item }) => (
           <Recording item={item} onDelete={deleteRecording} />
         )}
+        contentContainerStyle={styles.list}
       />
     </View>
   );
@@ -145,48 +125,59 @@ export default function RecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    paddingTop: 80,
   },
   title: {
     fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   subtitle: {
     fontSize: 18,
-    marginTop: 30,
-    marginBottom: 10,
-  },
-  saveSection: {
-    marginVertical: 15,
+    fontWeight: "600",
+    color: colors.primary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-  },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
-  },
-  filename: {
+    borderColor: colors.muted,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.sm,
     fontSize: 16,
+    marginBottom: spacing.sm,
+    color: colors.text,
   },
-  actions: {
-    flexDirection: "row",
-    gap: 15,
+  saveSection: {
+    marginTop: spacing.md,
   },
-  play: {
-    fontSize: 20,
+  button: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: "center",
   },
-  delete: {
-    fontSize: 20,
-    color: "red",
+  startButton: {
+    backgroundColor: colors.primary,
+  },
+  stopButton: {
+    backgroundColor: colors.danger,
+  },
+  saveButton: {
+    backgroundColor: colors.success,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  list: {
+    paddingBottom: spacing.lg,
   },
 });

@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   Text,
-  Button,
+  TouchableOpacity,
   Keyboard,
   TouchableWithoutFeedback,
   ActivityIndicator,
@@ -11,6 +11,7 @@ import {
 import MaskInput from "react-native-mask-input";
 import { useDispatch } from "react-redux";
 import { setServerInfo } from "../store/slices/audioSlices";
+import { colors, spacing, radius } from "../theme";
 
 const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
   return Promise.race([
@@ -60,9 +61,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <Text>Adresse IP du serveur</Text>
+        <Text style={styles.label}>Adresse IP du serveur</Text>
         <MaskInput
           style={styles.input}
           value={ip}
@@ -86,9 +87,10 @@ export default function HomeScreen() {
           ]}
           keyboardType="numeric"
           placeholder="ex: 192.168.001.001"
+          placeholderTextColor={colors.muted}
         />
 
-        <Text>Port</Text>
+        <Text style={styles.label}>Port</Text>
         <MaskInput
           style={styles.input}
           value={port}
@@ -96,16 +98,21 @@ export default function HomeScreen() {
           mask={[/\d/, /\d/, /\d/, /\d/, /\d/]}
           keyboardType="numeric"
           placeholder="ex: 8000"
+          placeholderTextColor={colors.muted}
         />
 
-        <Button
-          title={loading ? "Connexion en cours..." : "Tester la connexion"}
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={testConnection}
           disabled={loading}
-        />
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Connexion en cours..." : "Tester la connexion"}
+          </Text>
+        </TouchableOpacity>
 
         {loading && (
-          <ActivityIndicator style={{ marginTop: 10 }} size="large" />
+          <ActivityIndicator size="large" style={{ marginTop: spacing.md }} />
         )}
         {message !== "" && <Text style={styles.message}>{message}</Text>}
       </View>
@@ -116,21 +123,45 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     justifyContent: "center",
-    padding: 20,
+    padding: spacing.lg,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: spacing.xs,
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginVertical: 10,
-    borderRadius: 5,
+    borderColor: colors.muted,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
     fontSize: 16,
+    backgroundColor: colors.white,
+    color: colors.text,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: "center",
+    marginTop: spacing.md,
+  },
+  buttonDisabled: {
+    backgroundColor: "#aaa",
+  },
+  buttonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
   },
   message: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: spacing.md,
+    fontSize: 15,
     textAlign: "center",
-    color: "#333",
+    color: colors.text,
   },
 });
