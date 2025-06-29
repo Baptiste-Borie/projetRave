@@ -30,6 +30,7 @@ export default function HomeScreen() {
 
   const dispatch = useDispatch();
 
+  // Teste la connexion à un serveur HTTP donné avec gestion du timeout et mise à jour de l'état
   const testConnection = async () => {
     setMessage("");
     setLoading(true);

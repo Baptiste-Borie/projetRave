@@ -24,11 +24,14 @@ export default function RecordScreen() {
   const [nameInput, setNameInput] = useState("");
   const [tempUri, setTempUri] = useState(null);
 
+  // Décharge le son de la mémoire lorsque le composant est démonté ou que le son change
   useEffect(() => {
     return () => {
       if (sound) sound.unloadAsync();
     };
   }, [sound]);
+
+  // Demande les permissions et démarre l'enregistrement audio avec une qualité élevée
 
   const startRecording = async () => {
     try {
@@ -46,6 +49,7 @@ export default function RecordScreen() {
     }
   };
 
+  // Arrête l'enregistrement, le sauvegarde temporairement et prépare l'écoute
   const stopRecording = async () => {
     if (!recording) return;
 

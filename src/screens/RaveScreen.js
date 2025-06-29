@@ -29,6 +29,7 @@ export default function RaveScreen() {
   useEffect(() => {
     if (!server.ip || !server.port) return;
 
+    // Récupère dynamiquement la liste des modèles disponibles sur le serveur
     const fetchModels = async () => {
       try {
         const res = await fetch(`${baseUrl}/getmodels`);
@@ -42,6 +43,7 @@ export default function RaveScreen() {
     fetchModels();
   }, [server]);
 
+  // Télécharge le fichier transformé depuis le serveur et le stocke localement
   const downloadTransformedFile = async (baseUrl, filename = "output.wav") => {
     const directory = FileSystem.documentDirectory + "transformed/";
     const targetPath = directory + filename;
@@ -69,6 +71,7 @@ export default function RaveScreen() {
     }
   };
 
+  // Envoie la sélection de modèle au serveur via un appel HTTP
   const selectModel = async (model) => {
     try {
       await fetch(`${baseUrl}/selectModel/${model}`);
@@ -78,6 +81,7 @@ export default function RaveScreen() {
     }
   };
 
+  // Envoie l'enregistrement sélectionné au serveur et télécharge le résultat transformé
   const uploadAndTransform = async () => {
     if (!selectedRecording || !selectedModel) return;
     setLoading(true);
